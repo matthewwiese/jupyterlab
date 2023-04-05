@@ -87,6 +87,12 @@ export namespace ServerConnection {
      * The `WebSocket` object constructor.
      */
     readonly WebSocket: typeof WebSocket;
+
+    /**
+     * Whether the kernel connection is operating using WebSockets or
+     * the REST API
+     */
+    //readonly restExecution: boolean; // TODO: Finish
   }
 
   /**

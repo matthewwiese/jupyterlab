@@ -56,6 +56,8 @@ export class KernelConnection implements Kernel.IKernelConnection {
     this._username = options.username ?? '';
     this.handleComms = options.handleComms ?? true;
 
+    this.restExecution = true; // TODO: this.serverSettings.restExecution
+    console.log(`REST EXECUTION ENABLED: ${this.restExecution}`)
     this._createSocket();
   }
 
@@ -79,6 +81,11 @@ export class KernelConnection implements Kernel.IKernelConnection {
    * See https://github.com/jupyter/jupyter_client/issues/263
    */
   readonly handleComms: boolean;
+
+  /*
+   * Communicate vs WebSocket or REST API
+   */
+  readonly restExecution: boolean;
 
   /**
    * A signal emitted when the kernel status changes.
@@ -685,6 +692,20 @@ export class KernelConnection implements Kernel.IKernelConnection {
     ) as Promise<KernelMessage.IHistoryReplyMsg>;
   }
 
+  // Overload signatures
+  requestExecute(
+    content: KernelMessage.IExecuteRequestMsg['content'],
+    disposeOnDone: boolean,
+    metadata?: JSONObject
+  ): Kernel.IShellFuture<
+    KernelMessage.IExecuteRequestMsg,
+    KernelMessage.IExecuteReplyMsg
+  >;
+  requestExecute(
+    content: KernelMessage.IExecuteRequestMsg['content'],
+    disposeOnDone: boolean,
+    metadata?: JSONObject
+  ): Promise<restapi.IModel>;
   /**
    * Send an `execute_request` message.
    *
@@ -707,7 +728,17 @@ export class KernelConnection implements Kernel.IKernelConnection {
   ): Kernel.IShellFuture<
     KernelMessage.IExecuteRequestMsg,
     KernelMessage.IExecuteReplyMsg
-  > {
+  > | Promise<restapi.IModel> {
+    if (this.restExecution) {
+      if (this.status === 'dead') {
+        throw new Error('Kernel is dead');
+      }
+      // TODO: Hacky, find better solution to potential undefined-ness
+      const document_id = content.document_id ?? '';
+      const cell_idx = content.cell_idx ?? 0;
+
+      return restapi.execute(this.id, document_id, cell_idx, this.serverSettings);
+    } else {
     const defaults: JSONObject = {
       silent: false,
       store_history: true,
@@ -731,6 +762,7 @@ export class KernelConnection implements Kernel.IKernelConnection {
       KernelMessage.IExecuteRequestMsg,
       KernelMessage.IExecuteReplyMsg
     >;
+    }
   }
 
   /**
@@ -1242,6 +1274,7 @@ export class KernelConnection implements Kernel.IKernelConnection {
     // Update the connection status to reflect opening a new connection.
     this._updateConnectionStatus('connecting');
 
+    // TODO: Replace with Yjs api?
     const settings = this.serverSettings;
     const partialUrl = URLExt.join(
       settings.wsUrl,

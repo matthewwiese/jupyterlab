@@ -235,3 +235,33 @@ export async function getKernelModel(
   validateModel(data);
   return data;
 }
+
+// Execute cell of notebook for a given kernel
+ export async function execute(
+  kernel_id: string,
+  document_id: string,
+  cell_idx: number,
+  settings: ServerConnection.ISettings = ServerConnection.makeSettings()
+): Promise<IModel> {
+  const url = URLExt.join(
+    settings.baseUrl,
+    KERNEL_SERVICE_URL,
+    encodeURIComponent(kernel_id),
+    `execute`
+  );
+  const init = {
+    method: 'POST',
+    body: JSON.stringify({
+      document_id: document_id,
+      cell_idx: cell_idx,
+    })
+  };
+  const response = await ServerConnection.makeRequest(url, init, settings);
+  if (response.status !== 200) {
+    const err = await ServerConnection.ResponseError.create(response);
+    throw err;
+  }
+  const data = await response.json();
+  validateModel(data);
+  return data;
+}

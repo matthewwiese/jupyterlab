@@ -118,6 +118,12 @@ export interface IKernelConnection extends IObservableDisposable {
   hasPendingInput: boolean;
 
   /**
+   * Whether the kernel connection is operating using WebSockets or
+   * the REST API
+   */
+  restExecution: boolean;
+
+  /**
    * Send a shell message to the kernel.
    *
    * @param msg - The fully-formed shell message to send.

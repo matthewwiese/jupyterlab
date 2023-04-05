@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@jupyterlab/apputils": "^4.0.0-beta.0",
+    "@jupyterlab/coreutils": "^6.0.0-beta.0",
     "@jupyterlab/nbformat": "^4.0.0-beta.0",
     "@jupyterlab/observables": "^5.0.0-beta.0",
     "@jupyterlab/rendermime": "^4.0.0-beta.0",

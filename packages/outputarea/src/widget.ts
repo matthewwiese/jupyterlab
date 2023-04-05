@@ -24,6 +24,33 @@ import { ISignal, Signal } from '@lumino/signaling';
 import { Panel, PanelLayout, Widget } from '@lumino/widgets';
 import { IOutputAreaModel } from './model';
 
+import { ServerConnection } from '@jupyterlab/services';
+import { URLExt } from '@jupyterlab/coreutils';
+
+// NOTE: I had to put this here instead of in restapi.ts because TypeScript
+//       gave a circular dependency error that I was unsure how to resolve
+async function documentID(
+  path: string,
+  settings: ServerConnection.ISettings = ServerConnection.makeSettings()
+): Promise<string> {
+  const url = URLExt.join(
+    settings.baseUrl,
+    `api/yjs/roomid`,
+    encodeURIComponent(path),
+  );
+  const init = {
+    method: 'PUT',
+    body: JSON.stringify({format:'json',type:'notebook'})
+  };
+  const response = await ServerConnection.makeRequest(url, init, settings);
+  if (response.status !== 200) {
+    const err = await ServerConnection.ResponseError.create(response);
+    throw err;
+  }
+  const data = await response.text();
+  return data;
+}
+
 /**
  * The class name added to an output area widget.
  */
@@ -804,10 +831,10 @@ export namespace OutputArea {
    */
   export async function execute(
     code: string,
-    output: OutputArea,
+    cell: any, // TODO: Hack. Unable to import CodeCell from @jupyterlab/cells due to circular dependency?
     sessionContext: ISessionContext,
     metadata?: JSONObject
-  ): Promise<KernelMessage.IExecuteReplyMsg | undefined> {
+  ): Promise<[Promise<KernelMessage.IExecuteReplyMsg> | undefined, any]> {
     // Override the default for `stop_on_error`.
     let stopOnError = true;
     if (
@@ -817,9 +844,30 @@ export namespace OutputArea {
     ) {
       stopOnError = false;
     }
+
+    const cell_id = cell.model.sharedModel.getId();
+    const cell_idx = cell.model.sharedModel.notebook?.cells.findIndex((cc: any) => cc.id === cell_id);
+    const document_id = await documentID(sessionContext.path);
+
+    // TODO: Separate Yjs WebSocket connection from execution
+    const settings = ServerConnection.makeSettings();
+    const yjsUrl = URLExt.join(
+      settings.wsUrl,
+      `api/yjs`,
+      document_id
+    );
+    const yjsWS = new settings.WebSocket(yjsUrl, []);
+    yjsWS.binaryType = 'arraybuffer';
+    yjsWS.onmessage = (msg) => console.log(msg);
+
+    console.log(`path: ${sessionContext.path}`);
+    console.log(`cell index: ${cell_idx}`);
+    console.log(`document id: ${document_id}`);
     const content: KernelMessage.IExecuteRequestMsg['content'] = {
       code,
-      stop_on_error: stopOnError
+      stop_on_error: stopOnError,
+      document_id,
+      cell_idx,
     };
 
     const kernel = sessionContext.session?.kernel;
@@ -827,8 +875,8 @@ export namespace OutputArea {
       throw new Error('Session has no kernel.');
     }
     const future = kernel.requestExecute(content, false, metadata);
-    output.future = future;
-    return future.done;
+    cell.output.future = future;
+    return [future.done, yjsWS];
   }
 
   export function isIsolated(

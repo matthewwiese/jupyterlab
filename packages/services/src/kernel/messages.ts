@@ -1028,6 +1028,16 @@ export interface IExecuteRequestMsg extends IShellMessage<'execute_request'> {
      * The default is `false`.
      */
     stop_on_error?: boolean;
+
+    /**
+     * Document ID (notebook)
+     */
+     document_id?: string;
+
+     /**
+      * Index of cell in notebook
+      */
+     cell_idx?: number;
   };
 }
 
