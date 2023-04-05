@@ -237,6 +237,8 @@ export interface ISessionContext extends IObservableDisposable {
   changeKernel(
     options?: Partial<Kernel.IModel>
   ): Promise<Kernel.IKernelConnection | null>;
+
+  connectYjs(): Promise<void>;
 }
 
 /**
@@ -744,6 +746,10 @@ export class SessionContext implements ISessionContext {
     // ordering.
     await this._initStarted.promise;
     return this._changeKernel(options);
+  }
+
+  async connectYjs(): Promise<void> {
+    return await this.session?.kernel?.createSocketYjs(this.session.path);
   }
 
   /**

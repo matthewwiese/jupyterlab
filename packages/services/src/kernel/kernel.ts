@@ -122,6 +122,7 @@ export interface IKernelConnection extends IObservableDisposable {
    * the REST API
    */
   restExecution: boolean;
+  createSocketYjs(docPath: string): Promise<void>;
 
   /**
    * Send a shell message to the kernel.

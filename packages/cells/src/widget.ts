@@ -1466,7 +1466,7 @@ export namespace CodeCell {
         >
       | undefined;
     try {
-      const msgPromisePair = OutputArea.execute(
+      const msgPromise = OutputArea.execute(
         code,
         cell,
         sessionContext,
@@ -1505,7 +1505,6 @@ export namespace CodeCell {
       }
       // Save this execution's future so we can compare in the catch below.
       future = cell.outputArea.future;
-      const [msgPromise, yjsWS] = await msgPromisePair;
       const msg = (await msgPromise)!;
       model.executionCount = msg.content.execution_count;
       if (recordTiming) {
@@ -1524,8 +1523,6 @@ export namespace CodeCell {
           finished || new Date().toISOString();
         model.setMetadata('execution', timingInfo);
       }
-      console.log(`Closing Yjs: ${yjsWS.url}`); // NOTE: This is not appearing in the logs for me
-      yjsWS.close()
       return msg;
     } catch (e) {
       // If we started executing, and the cell is still indicating this

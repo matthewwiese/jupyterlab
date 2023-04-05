@@ -834,7 +834,7 @@ export namespace OutputArea {
     cell: any, // TODO: Hack. Unable to import CodeCell from @jupyterlab/cells due to circular dependency?
     sessionContext: ISessionContext,
     metadata?: JSONObject
-  ): Promise<[Promise<KernelMessage.IExecuteReplyMsg> | undefined, any]> {
+    ): Promise<KernelMessage.IExecuteReplyMsg> {
     // Override the default for `stop_on_error`.
     let stopOnError = true;
     if (
@@ -849,16 +849,7 @@ export namespace OutputArea {
     const cell_idx = cell.model.sharedModel.notebook?.cells.findIndex((cc: any) => cc.id === cell_id);
     const document_id = await documentID(sessionContext.path);
 
-    // TODO: Separate Yjs WebSocket connection from execution
-    const settings = ServerConnection.makeSettings();
-    const yjsUrl = URLExt.join(
-      settings.wsUrl,
-      `api/yjs`,
-      document_id
-    );
-    const yjsWS = new settings.WebSocket(yjsUrl, []);
-    yjsWS.binaryType = 'arraybuffer';
-    yjsWS.onmessage = (msg) => console.log(msg);
+    await sessionContext.connectYjs(); // TODO: Fix. This doesn't work reliably and so we 500 on the POST
 
     console.log(`path: ${sessionContext.path}`);
     console.log(`cell index: ${cell_idx}`);
@@ -876,7 +867,7 @@ export namespace OutputArea {
     }
     const future = kernel.requestExecute(content, false, metadata);
     cell.output.future = future;
-    return [future.done, yjsWS];
+    return future.done;
   }
 
   export function isIsolated(

@@ -1262,6 +1262,65 @@ export class KernelConnection implements Kernel.IKernelConnection {
     this._comms.delete(commId);
   }
 
+  private async _documentID(
+    path: string,
+    settings: ServerConnection.ISettings = ServerConnection.makeSettings()
+  ): Promise<string> {
+    const url = URLExt.join(
+      settings.baseUrl,
+      `api/yjs/roomid`,
+      encodeURIComponent(path),
+    );
+    const init = {
+      method: 'PUT',
+      body: JSON.stringify({format:'json',type:'notebook'})
+    };
+    const response = await ServerConnection.makeRequest(url, init, settings);
+    if (response.status !== 200) {
+      const err = await ServerConnection.ResponseError.create(response);
+      throw err;
+    }
+    const data = await response.text();
+    return data;
+  }
+
+  /**
+   * Create the Yjs WebSocket connection and add handlers
+   */
+  createSocketYjs(docPath: string): Promise<void>;
+  async createSocketYjs(docPath: string): Promise<void> {
+    console.log(`CREATE SOCKET YJS`);
+
+    // Clear Yjs socket
+    if (this._yjs !== null) {
+      // Clear the websocket event handlers and the socket itself.
+      console.log(`Yjs not null, clearing before reconnect`);
+      this._yjs.onopen = this._noOp;
+      this._yjs.onclose = this._noOp;
+      this._yjs.onerror = this._noOp;
+      this._yjs.onmessage = this._noOp;
+      this._yjs.close();
+      this._yjs = null;
+    }
+
+    const document_id = await this._documentID(docPath);
+    console.log(`DOCUMENT ID _createSocketYjs: ${document_id}`);
+    const settings = ServerConnection.makeSettings();
+    const yjsUrl = URLExt.join(
+      settings.wsUrl,
+      `api/yjs`,
+      document_id
+    );
+
+    this._yjs = new settings.WebSocket(yjsUrl, []);
+    this._yjs.binaryType = 'arraybuffer';
+    this._yjs.onmessage = (msg) => console.log(msg);
+    this._yjs.onopen  = () => console.log(`Starting Yjs: ${this._yjs!.url}`);
+    this._yjs.onclose = () => console.log(`Stopping Yjs: ${this._yjs!.url}`);
+
+    return
+  }
+
   /**
    * Create the kernel websocket connection and add socket status handlers.
    */
@@ -1672,6 +1731,9 @@ export class KernelConnection implements Kernel.IKernelConnection {
     KernelMessage.supportedKernelWebSocketProtocols
   );
   private _selectedProtocol: string = '';
+
+  // WebSocket to communicate with Yjs
+  private _yjs: WebSocket | null = null;
 
   private _futures = new Map<
     string,
