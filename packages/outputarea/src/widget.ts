@@ -35,7 +35,7 @@ async function documentID(
 ): Promise<string> {
   const url = URLExt.join(
     settings.baseUrl,
-    `api/yjs/roomid`,
+    `api/collaboration/session`,
     encodeURIComponent(path),
   );
   const init = {
@@ -47,8 +47,8 @@ async function documentID(
     const err = await ServerConnection.ResponseError.create(response);
     throw err;
   }
-  const data = await response.text();
-  return data;
+  const data = await response.json();
+  return `${data.format}:${data.type}:${data.fileId}`;
 }
 
 /**

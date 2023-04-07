@@ -1268,7 +1268,7 @@ export class KernelConnection implements Kernel.IKernelConnection {
   ): Promise<string> {
     const url = URLExt.join(
       settings.baseUrl,
-      `api/yjs/roomid`,
+      `api/collaboration/session`,
       encodeURIComponent(path),
     );
     const init = {
@@ -1280,8 +1280,8 @@ export class KernelConnection implements Kernel.IKernelConnection {
       const err = await ServerConnection.ResponseError.create(response);
       throw err;
     }
-    const data = await response.text();
-    return data;
+    const data = await response.json();
+    return `${data.format}:${data.type}:${data.fileId}`;
   }
 
   /**
@@ -1308,8 +1308,8 @@ export class KernelConnection implements Kernel.IKernelConnection {
     const settings = ServerConnection.makeSettings();
     const yjsUrl = URLExt.join(
       settings.wsUrl,
-      `api/yjs`,
-      document_id
+      `api/collaboration/room`,
+      document_id,
     );
 
     this._yjs = new settings.WebSocket(yjsUrl, []);
